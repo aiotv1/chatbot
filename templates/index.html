@@ -53,7 +53,7 @@
             background: #1e1e1e;
         }
         .chat-header {
-            background: #007bff;
+            background: linear-gradient(135deg, #007bff, #6f42c1);
             color: white;
             padding: 15px;
             text-align: center;
@@ -69,6 +69,10 @@
         .chat-header i {
             font-size: 1.5rem;
             cursor: pointer;
+            transition: transform 0.3s ease;
+        }
+        .chat-header i:hover {
+            transform: scale(1.2);
         }
         .chat-box {
             flex: 1;
@@ -90,47 +94,47 @@
             height: 40px;
             border-radius: 50%;
             margin: 0 10px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
         }
         .message-content {
             max-width: 70%;
             padding: 10px;
-            border-radius: 8px;
+            border-radius: 16px;
             position: relative;
+            animation: fadeIn 0.5s ease-in-out;
         }
         .user-message {
             justify-content: flex-end;
         }
         .user-message .message-content {
-            background: #007bff;
+            background: linear-gradient(135deg, #007bff, #6f42c1);
             color: white;
             align-self: flex-end;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
         }
         .bot-message {
             justify-content: flex-start;
         }
         .bot-message .message-content {
-            background: #ffffff;
+            background: linear-gradient(135deg, #ffffff, #e6f7ff);
             color: black;
             align-self: flex-start;
             border: 1px solid #ddd;
             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-            animation: fadeInBlue 0.5s ease-in-out;
         }
         body.dark-mode .bot-message .message-content {
-            background: #1e1e1e;
+            background: linear-gradient(135deg, #1e1e1e, #333);
             color: #ccc;
             border: 1px solid #333;
         }
-        @keyframes fadeInBlue {
+        @keyframes fadeIn {
             from {
                 opacity: 0;
                 transform: translateY(10px);
-                background: #e6f7ff;
             }
             to {
                 opacity: 1;
                 transform: translateY(0);
-                background: #ffffff;
             }
         }
         pre {
@@ -177,25 +181,15 @@
         .input-box button {
             margin-left: 10px;
             padding: 10px 15px;
-            background-color: #007bff;
+            background: linear-gradient(135deg, #007bff, #6f42c1);
             color: white;
             border: none;
             border-radius: 20px;
             cursor: pointer;
-            transition: background-color 0.3s ease;
+            transition: background 0.3s ease;
         }
-        .fade-in {
-            animation: fadeIn 0.5s ease-in-out;
-        }
-        @keyframes fadeIn {
-            from {
-                opacity: 0;
-                transform: translateY(10px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
+        .input-box button:hover {
+            background: linear-gradient(135deg, #6f42c1, #007bff);
         }
         /* مؤشر التحميل */
         .loading-animation {
@@ -203,8 +197,8 @@
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            width: 100px;
-            height: 100px;
+            width: 150px;
+            height: 150px;
             z-index: 1000;
             display: none;
             filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.1));
@@ -214,7 +208,7 @@
             position: fixed;
             bottom: 20px;
             right: 20px;
-            background: #007bff;
+            background: linear-gradient(135deg, #007bff, #6f42c1);
             color: white;
             border: none;
             border-radius: 50%;
@@ -228,7 +222,7 @@
             transition: background 0.3s ease;
         }
         .scroll-btn:hover {
-            background: #0056b3;
+            background: linear-gradient(135deg, #6f42c1, #007bff);
         }
     </style>
 </head>
