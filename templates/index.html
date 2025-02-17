@@ -1,95 +1,395 @@
-from flask import Flask, render_template, request, jsonify
-import requests
-import logging
-import os
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chatbot</title>
+    <!-- إضافة مكتبة marked.js -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <!-- إضافة jQuery -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <!-- إضافة Prism.js لتسليط الضوء على بناء الجملة -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/autoloader/prism-autoloader.min.js"></script>
+    <!-- إضافة خطوط Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <!-- إضافة أيقونات Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <!-- إضافة مكتبة Lottie -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bodymovin/5.7.6/lottie.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Roboto', sans-serif;
+            background: linear-gradient(135deg, #f5f7fa, #c3cfe2);
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+            transition: background 0.5s ease;
+        }
+        body.dark-mode {
+            background: #121212;
+        }
+        .chat-container {
+            width: 100%;
+            max-width: 600px;
+            height: 100vh;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            transition: background 0.5s ease;
+        }
+        body.dark-mode .chat-container {
+            background: #1e1e1e;
+        }
+        .chat-header {
+            background: #007bff;
+            color: white;
+            padding: 15px;
+            text-align: center;
+            font-size: 1.2rem;
+            font-weight: bold;
+            border-top-left-radius: 16px;
+            border-top-right-radius: 16px;
+            position: relative;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .chat-header i {
+            font-size: 1.5rem;
+            cursor: pointer;
+        }
+        .chat-box {
+            flex: 1;
+            padding: 10px;
+            overflow-y: auto;
+            background-color: #f9f9f9;
+            transition: background 0.5s ease;
+        }
+        body.dark-mode .chat-box {
+            background-color: #121212;
+        }
+        .message {
+            margin: 10px 0;
+            display: flex;
+            align-items: flex-start;
+        }
+        .message img {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            margin: 0 10px;
+        }
+        .message-content {
+            max-width: 70%;
+            padding: 10px;
+            border-radius: 8px;
+            position: relative;
+        }
+        .user-message {
+            justify-content: flex-end;
+        }
+        .user-message .message-content {
+            background: #007bff;
+            color: white;
+            align-self: flex-end;
+        }
+        .bot-message {
+            justify-content: flex-start;
+        }
+        .bot-message .message-content {
+            background: #ffffff;
+            color: black;
+            align-self: flex-start;
+            border: 1px solid #ddd;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        body.dark-mode .bot-message .message-content {
+            background: #1e1e1e;
+            color: #ccc;
+            border: 1px solid #333;
+        }
+        pre {
+            background: #2d2d2d;
+            padding: 10px;
+            border-radius: 8px;
+            position: relative;
+            overflow-x: auto;
+        }
+        img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 8px;
+        }
+        hr {
+            border: none;
+            border-top: 1px solid #ddd;
+            margin: 15px 0;
+        }
+        .input-box {
+            display: flex;
+            padding: 10px;
+            border-top: 1px solid #ddd;
+            background: white;
+            transition: background 0.5s ease;
+        }
+        body.dark-mode .input-box {
+            background: #1e1e1e;
+            border-top: 1px solid #333;
+        }
+        .input-box input {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 20px;
+            outline: none;
+            transition: border-color 0.3s ease;
+        }
+        body.dark-mode .input-box input {
+            border: 1px solid #333;
+            background: #1e1e1e;
+            color: #ccc;
+        }
+        .input-box button {
+            margin-left: 10px;
+            padding: 10px 15px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+        .fade-in {
+            animation: fadeIn 0.5s ease-in-out;
+        }
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        /* مؤشر التحميل */
+        .loading-animation {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 100px;
+            height: 100px;
+            z-index: 1000;
+            display: none;
+        }
+        /* زر التمرير */
+        .scroll-btn {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            transition: background 0.3s ease;
+        }
+        .scroll-btn:hover {
+            background: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <div class="chat-container">
+        <div class="chat-header">
+            <i class="fas fa-robot"></i> Chatbot
+            <div>
+                <i class="fas fa-trash-alt" id="clear-chat" title="مسح المحادثة"></i>
+                <i class="fas fa-moon" id="dark-mode-toggle" title="وضع الظلام"></i>
+            </div>
+        </div>
+        <div class="chat-box" id="chat-box">
+            <!-- الرسائل ستظهر هنا -->
+        </div>
+        <div class="input-box">
+            <input type="text" id="user-input" placeholder="اكتب سؤالك هنا..." required>
+            <button id="send-button"><i class="fas fa-paper-plane"></i></button>
+        </div>
+    </div>
 
-# تهيئة Flask
-app = Flask(__name__)
+    <!-- مؤشر التحميل -->
+    <div class="loading-animation" id="loading-animation"></div>
 
-# إعداد تسجيل الأخطاء (Logging)
-logging.basicConfig(filename='app.log', level=logging.INFO, 
-                    format='%(asctime)s %(levelname)s: %(message)s')
+    <!-- زر التمرير -->
+    <button class="scroll-btn" id="scroll-to-bottom"><i class="fas fa-arrow-down"></i></button>
+    <button class="scroll-btn" id="scroll-to-top" style="bottom: 70px;"><i class="fas fa-arrow-up"></i></button>
 
-# قائمة لتخزين الرسائل السابقة
-conversation_history = []
+    <script>
+        // تهيئة Lottie Animation
+        const loadingAnimationContainer = document.getElementById('loading-animation');
+        const loadingAnimation = lottie.loadAnimation({
+            container: loadingAnimationContainer,
+            renderer: 'svg',
+            loop: true,
+            autoplay: false,
+            path: 'https://raw.githubusercontent.com/ChatbootProjet/chatboot/refs/heads/main/Assets/aio.json' // رابط مباشر للرسوم المتحركة
+        });
 
-# تخزين مؤقت (Caching) للأسئلة الشائعة
-faq_cache = {
-    "what is a pc": "A **PC** (Personal Computer) is a general-purpose computer designed for individual use. It typically includes a processor, memory, storage, and input/output devices like a keyboard and mouse.",
-    "how are you": "I'm just a program, so I don't have feelings, but thanks for asking! How can I assist you today?",
-    "hi": "Hello! How can I help you today?",
-    "hello": "Hi there! How can I assist you?",
-    "date": "To get the current date, you can ask 'What is the date today?' or 'Tell me the date.'",
-}
+        // إظهار مؤشر التحميل
+        function showLoadingAnimation() {
+            loadingAnimationContainer.style.display = 'block';
+            loadingAnimation.play();
+        }
 
-def get_current_date_from_web():
-    try:
-        # تعطيل التحقق من SSL مؤقتًا (غير موصى به إلا في حالات الاختبار)
-        response = requests.get("http://worldtimeapi.org/api/timezone/Etc/UTC", verify=False)
-        if response.status_code == 200:
-            data = response.json()
-            date_time = data["datetime"][:10]  # استخراج التاريخ فقط (YYYY-MM-DD)
-            return f"Today's date is: {date_time}"
-        else:
-            logging.error(f"Error fetching date from worldtimeapi.org: {response.status_code}")
-            return "Sorry, I couldn't fetch the current date."
-    except Exception as e:
-        logging.error(f"Exception while fetching date: {e}")
-        return "Sorry, an error occurred while fetching the date."
+        // إخفاء مؤشر التحميل
+        function hideLoadingAnimation() {
+            loadingAnimationContainer.style.display = 'none';
+            loadingAnimation.stop();
+        }
 
-@app.route("/", methods=["GET"])
-def index():
-    return render_template("index.html")
+        // إضافة رسالة جديدة إلى مربع الدردشة
+        function addMessage(sender, message) {
+            const chatBox = document.getElementById("chat-box");
+            const messageDiv = document.createElement("div");
+            messageDiv.classList.add("message", sender === "user" ? "user-message" : "bot-message", "fade-in");
 
-@app.route("/send_message", methods=["POST"])
-def send_message():
-    user_input = request.form["user_input"].strip().lower()
-    bot_response = handle_user_input(user_input)
-    return jsonify({"user_input": user_input, "bot_response": bot_response})
+            // تحويل النص المكتوب بتنسيق Markdown إلى HTML
+            let parsedMessage = message;
+            if (sender === "bot") {
+                parsedMessage = marked.parse(message); // تحويل Markdown إلى HTML
+            }
 
-def handle_user_input(user_input):
-    # التحقق من الأسئلة الشائعة (FAQ) أولاً
-    if user_input in faq_cache:
-        return faq_cache[user_input]
+            // إضافة صورة البروفايل
+            const profileImage = document.createElement("img");
+            profileImage.src = sender === "user" 
+                ? "https://raw.githubusercontent.com/ChatbootProjet/chatboot/refs/heads/main/Assets/user.png" 
+                : "https://raw.githubusercontent.com/ChatbootProjet/chatboot/refs/heads/main/Assets/bot.png";
+            profileImage.alt = sender === "user" ? "المستخدم" : "البوت";
 
-    # إذا كان السؤال يتعلق بالتاريخ
-    if "date" in user_input or "what is the date" in user_input:
-        return get_current_date_from_web()
+            // إضافة محتوى الرسالة
+            const messageContent = document.createElement("div");
+            messageContent.classList.add("message-content");
+            messageContent.innerHTML = parsedMessage;
 
-    # إذا لم يكن هناك إجابة مسبقة، نرسل الطلب إلى Gemini API
-    return send_message_to_gemini(user_input)
+            // إضافة زر النسخ لكل كتلة من الكود
+            const codeBlocks = messageContent.querySelectorAll("pre");
+            codeBlocks.forEach((codeBlock) => {
+                const copyBtn = document.createElement("button");
+                copyBtn.classList.add("copy-btn");
+                copyBtn.innerHTML = '<i class="fas fa-copy"></i>';
+                copyBtn.onclick = () => {
+                    const codeText = codeBlock.querySelector("code").innerText;
+                    navigator.clipboard.writeText(codeText).then(() => {
+                        copyBtn.classList.add("copied");
+                        setTimeout(() => copyBtn.classList.remove("copied"), 2000);
+                    });
+                };
+                codeBlock.appendChild(copyBtn);
+            });
 
-def send_message_to_gemini(message):
-    conversation_history.append({"role": "user", "parts": [{"text": message}]})
-    url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent"
-    headers = {
-        "Content-Type": "application/json"
-    }
-    data = {
-        "contents": conversation_history
-    }
-    params = {
-        "key": "AIzaSyByJMeVo9xbPAp_n-Iy1c5I8IBpD-lSLV8"  # استبدل بمفتاح API الخاص بك
-    }
-    try:
-        # تعطيل التحقق من SSL مؤقتًا (غير موصى به إلا في حالات الاختبار)
-        response = requests.post(url, headers=headers, json=data, params=params, verify=False)
-        if response.status_code == 200:
-            try:
-                # التحقق من بنية الاستجابة
-                bot_response = response.json()["candidates"][0]["content"]["parts"][0]["text"]
-                conversation_history.append({"role": "model", "parts": [{"text": bot_response}]})
-                return bot_response
-            except KeyError as e:
-                logging.error(f"KeyError in Gemini API response: {e}")
-                logging.error(f"Full response: {response.json()}")
-                return "Sorry, I encountered an issue while processing your request."
-        else:
-            logging.error(f"Gemini API request failed: {response.status_code}, {response.text}")
-            return "Sorry, an error occurred while processing your request."
-    except Exception as e:
-        logging.error(f"Exception while calling Gemini API: {e}")
-        return "Sorry, an unexpected error occurred."
+            // ترتيب العناصر داخل الرسالة
+            if (sender === "user") {
+                messageDiv.appendChild(messageContent);
+                messageDiv.appendChild(profileImage);
+            } else {
+                messageDiv.appendChild(profileImage);
+                messageDiv.appendChild(messageContent);
+            }
 
-if __name__ == "__main__":
-    app.run(debug=True)
+            chatBox.appendChild(messageDiv);
+
+            // تحريك شريط التمرير إلى الأسفل
+            chatBox.scrollTop = chatBox.scrollHeight;
+
+            // تحديث Prism.js لتطبيق Syntax Highlighting
+            Prism.highlightAll();
+        }
+
+        // إرسال الرسالة باستخدام AJAX
+        $(document).ready(function () {
+            $("#send-button").click(function () {
+                const userInput = $("#user-input").val().trim();
+                if (!userInput) return;
+
+                // إضافة رسالة المستخدم إلى واجهة المستخدم
+                addMessage("user", userInput);
+
+                // إظهار مؤشر التحميل
+                showLoadingAnimation();
+
+                // إرسال الرسالة إلى الخادم عبر AJAX
+                $.ajax({
+                    url: "/send_message",
+                    method: "POST",
+                    data: { user_input: userInput },
+                    success: function (response) {
+                        // إضافة رد البوت إلى واجهة المستخدم
+                        addMessage("bot", response.bot_response);
+                    },
+                    error: function () {
+                        addMessage("bot", "عذرًا، حدث خطأ أثناء معالجة طلبك.");
+                    },
+                    complete: function () {
+                        // إخفاء مؤشر التحميل بعد انتهاء الطلب
+                        hideLoadingAnimation();
+                    }
+                });
+
+                // مسح مربع الإدخال
+                $("#user-input").val("");
+            });
+
+            // إرسال الرسالة عند الضغط على Enter
+            $("#user-input").keypress(function (e) {
+                if (e.which === 13) {
+                    $("#send-button").click();
+                }
+            });
+
+            // زر مسح المحادثة
+            $("#clear-chat").click(function () {
+                const chatBox = document.getElementById("chat-box");
+                chatBox.innerHTML = ""; // مسح جميع الرسائل
+            });
+
+            // زر التبديل بين الوضع العادي والوضع المظلم
+            let isDarkMode = false;
+            $("#dark-mode-toggle").click(function () {
+                isDarkMode = !isDarkMode;
+                document.body.classList.toggle("dark-mode", isDarkMode);
+            });
+
+            // زر التمرير إلى الأعلى
+            $("#scroll-to-top").click(function () {
+                const chatBox = document.getElementById("chat-box");
+                chatBox.scrollTop = 0; // التمرير إلى الأعلى
+            });
+
+            // زر التمرير إلى الأسفل
+            $("#scroll-to-bottom").click(function () {
+                const chatBox = document.getElementById("chat-box");
+                chatBox.scrollTop = chatBox.scrollHeight; // التمرير إلى الأسفل
+            });
+        });
+    </script>
+</body>
+</html>
