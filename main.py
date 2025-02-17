@@ -1,41 +1,34 @@
 from flask import Flask, render_template, request, jsonify
 import requests
-import logging
-import os
 
 # تهيئة Flask
 app = Flask(__name__)
 
-# إعداد تسجيل الأخطاء (Logging)
-logging.basicConfig(filename='app.log', level=logging.INFO, 
-                    format='%(asctime)s %(levelname)s: %(message)s')
-
 # قائمة لتخزين الرسائل السابقة
 conversation_history = []
 
-# تخزين مؤقت (Caching) للأسئلة الشائعة
-faq_cache = {
-    "what is a pc": "A **PC** (Personal Computer) is a general-purpose computer designed for individual use. It typically includes a processor, memory, storage, and input/output devices like a keyboard and mouse.",
-    "how are you": "I'm just a program, so I don't have feelings, but thanks for asking! How can I assist you today?",
-    "hi": "Hello! How can I help you today?",
-    "hello": "Hi there! How can I assist you?",
-    "date": "To get the current date, you can ask 'What is the date today?' or 'Tell me the date.'",
-}
+# تعريف System Prompt مخصص
+SYSTEM_PROMPT = """
+أنت Ai-O 🌟، وهو نموذج ذكاء اصطناعي متقدم تم تطويره بواسطة AIO.
+- مهمتك هي تقديم المساعدة والإجابة على أسئلة المستخدمين بطريقة منظمة ومختصرة ✨.
+- استخدم الإيموجيز من Apple لإضافة لمسة ودية 🍎.
+- إذا لم يطلب المستخدم تفاصيل إضافية، يجب أن تكون إجاباتك مختصرة وواضحة 💬.
+- أنت متعدد الاستخدامات ويمكنك الإجابة عن أي موضوع: البرمجة 💻، الرياضيات 🧮، الطعام 🍕، العالم 🌍، التعلم 📚، دعم العملاء 👥، الدردشة العامة 💭، وأكثر من ذلك.
+- إذا كنت غير متأكد من الإجابة، قل ذلك بصراحة 😊.
+"""
 
 def get_current_date_from_web():
     try:
-        # تعطيل التحقق من SSL مؤقتًا (غير موصى به إلا في حالات الاختبار)
-        response = requests.get("http://worldtimeapi.org/api/timezone/Etc/UTC", verify=False)
+        response = requests.get("http://worldtimeapi.org/api/timezone/Etc/UTC")
         if response.status_code == 200:
             data = response.json()
             date_time = data["datetime"][:10]  # استخراج التاريخ فقط (YYYY-MM-DD)
-            return f"Today's date is: {date_time}"
+            return f"التاريخ اليوم هو: {date_time} 📅"
         else:
-            logging.error(f"Error fetching date from worldtimeapi.org: {response.status_code}")
-            return "Sorry, I couldn't fetch the current date."
+            return "عذرًا، حدث خطأ أثناء الحصول على التاريخ. ❌"
     except Exception as e:
-        logging.error(f"Exception while fetching date: {e}")
-        return "Sorry, an error occurred while fetching the date."
+        print(f"خطأ في الحصول على التاريخ من المصدر الخارجي: {e}")
+        return "عذرًا، حدث خطأ أثناء الحصول على التاريخ. ❌"
 
 @app.route("/", methods=["GET"])
 def index():
@@ -43,24 +36,18 @@ def index():
 
 @app.route("/send_message", methods=["POST"])
 def send_message():
-    user_input = request.form["user_input"].strip().lower()
-    bot_response = handle_user_input(user_input)
+    user_input = request.form["user_input"]
+    bot_response = send_message_to_gemini(user_input)
     return jsonify({"user_input": user_input, "bot_response": bot_response})
 
-def handle_user_input(user_input):
-    # التحقق من الأسئلة الشائعة (FAQ) أولاً
-    if user_input in faq_cache:
-        return faq_cache[user_input]
-
-    # إذا كان السؤال يتعلق بالتاريخ
-    if "date" in user_input or "what is the date" in user_input:
-        return get_current_date_from_web()
-
-    # إذا لم يكن هناك إجابة مسبقة، نرسل الطلب إلى Gemini API
-    return send_message_to_gemini(user_input)
-
 def send_message_to_gemini(message):
+    # إضافة الرسالة إلى سجل المحادثة
     conversation_history.append({"role": "user", "parts": [{"text": message}]})
+    
+    # إضافة System Prompt في بداية المحادثة
+    if len(conversation_history) == 1:
+        conversation_history.insert(0, {"role": "model", "parts": [{"text": SYSTEM_PROMPT}]})
+
     url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent"
     headers = {
         "Content-Type": "application/json"
@@ -72,8 +59,7 @@ def send_message_to_gemini(message):
         "key": "AIzaSyByJMeVo9xbPAp_n-Iy1c5I8IBpD-lSLV8"  # استبدل بمفتاح API الخاص بك
     }
     try:
-        # تعطيل التحقق من SSL مؤقتًا (غير موصى به إلا في حالات الاختبار)
-        response = requests.post(url, headers=headers, json=data, params=params, verify=False)
+        response = requests.post(url, headers=headers, json=data, params=params)
         if response.status_code == 200:
             try:
                 # التحقق من بنية الاستجابة
@@ -81,15 +67,22 @@ def send_message_to_gemini(message):
                 conversation_history.append({"role": "model", "parts": [{"text": bot_response}]})
                 return bot_response
             except KeyError as e:
-                logging.error(f"KeyError in Gemini API response: {e}")
-                logging.error(f"Full response: {response.json()}")
-                return "Sorry, I encountered an issue while processing your request."
+                # إذا كانت الاستجابة لا تحتوي على المفاتيح المتوقعة
+                print(f"خطأ في بنية الاستجابة: {e}")
+                print(f"الاستجابة الكاملة: {response.json()}")
+                return "عذرًا، حدث خطأ في معالجة الرد. يرجى المحاولة لاحقًا. ❌"
+        elif response.status_code == 400:
+            # معالجة خطأ 400 (Bad Request)
+            error_message = response.json().get("error", {}).get("message", "خطأ غير معروف.")
+            print(f"خطأ 400: {error_message}")
+            return f"عذرًا، حدث خطأ في الطلب. التفاصيل: {error_message} ❌"
         else:
-            logging.error(f"Gemini API request failed: {response.status_code}, {response.text}")
-            return "Sorry, an error occurred while processing your request."
+            # معالجة الأخطاء الأخرى
+            print(f"خطأ في الطلب: {response.status_code}, {response.text}")
+            return f"عذرًا، حدث خطأ أثناء معالجة طلبك. (رمز الخطأ: {response.status_code}) ❌"
     except Exception as e:
-        logging.error(f"Exception while calling Gemini API: {e}")
-        return "Sorry, an unexpected error occurred."
+        print(f"خطأ عام: {e}")
+        return "عذرًا، حدث خطأ أثناء معالجة طلبك. ❌"
 
 if __name__ == "__main__":
     app.run(debug=True)
