@@ -17,19 +17,6 @@ SYSTEM_PROMPT = """
 - إذا كنت غير متأكد من الإجابة، قل ذلك بصراحة 😊.
 """
 
-def get_current_date_from_web():
-    try:
-        response = requests.get("http://worldtimeapi.org/api/timezone/Etc/UTC")
-        if response.status_code == 200:
-            data = response.json()
-            date_time = data["datetime"][:10]  # استخراج التاريخ فقط (YYYY-MM-DD)
-            return f"التاريخ اليوم هو: {date_time} 📅"
-        else:
-            return "عذرًا، حدث خطأ أثناء الحصول على التاريخ. ❌"
-    except Exception as e:
-        print(f"خطأ في الحصول على التاريخ من المصدر الخارجي: {e}")
-        return "عذرًا، حدث خطأ أثناء الحصول على التاريخ. ❌"
-
 @app.route("/", methods=["GET"])
 def index():
     return render_template("index.html")
@@ -41,10 +28,12 @@ def send_message():
     return jsonify({"user_input": user_input, "bot_response": bot_response})
 
 def send_message_to_gemini(message):
-    # إضافة الرسالة إلى سجل المحادثة
+    global conversation_history
+
+    # إضافة رسالة المستخدم إلى سجل المحادثة
     conversation_history.append({"role": "user", "parts": [{"text": message}]})
-    
-    # إضافة System Prompt في بداية المحادثة
+
+    # إضافة System Prompt في بداية المحادثة إذا كانت المحادثة فارغة
     if len(conversation_history) == 1:
         conversation_history.insert(0, {"role": "model", "parts": [{"text": SYSTEM_PROMPT}]})
 
@@ -64,6 +53,7 @@ def send_message_to_gemini(message):
             try:
                 # التحقق من بنية الاستجابة
                 bot_response = response.json()["candidates"][0]["content"]["parts"][0]["text"]
+                # إضافة رد البوت إلى سجل المحادثة
                 conversation_history.append({"role": "model", "parts": [{"text": bot_response}]})
                 return bot_response
             except KeyError as e:
@@ -83,6 +73,12 @@ def send_message_to_gemini(message):
     except Exception as e:
         print(f"خطأ عام: {e}")
         return "عذرًا، حدث خطأ أثناء معالجة طلبك. ❌"
+
+@app.route("/clear_context", methods=["POST"])
+def clear_context():
+    global conversation_history
+    conversation_history = []  # مسح السياق الحالي
+    return jsonify({"status": "success", "message": "تم مسح السياق بنجاح."})
 
 if __name__ == "__main__":
     app.run(debug=True)
