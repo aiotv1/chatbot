@@ -114,11 +114,24 @@
             align-self: flex-start;
             border: 1px solid #ddd;
             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            animation: fadeInBlue 0.5s ease-in-out;
         }
         body.dark-mode .bot-message .message-content {
             background: #1e1e1e;
             color: #ccc;
             border: 1px solid #333;
+        }
+        @keyframes fadeInBlue {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+                background: #e6f7ff;
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+                background: #ffffff;
+            }
         }
         pre {
             background: #2d2d2d;
@@ -194,6 +207,7 @@
             height: 100px;
             z-index: 1000;
             display: none;
+            filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.1));
         }
         /* زر التمرير */
         .scroll-btn {
@@ -224,6 +238,7 @@
             <i class="fas fa-robot"></i> Chatbot
             <div>
                 <i class="fas fa-trash-alt" id="clear-chat" title="مسح المحادثة"></i>
+                <i class="fas fa-sync-alt" id="clear-context" title="مسح السياق"></i>
                 <i class="fas fa-moon" id="dark-mode-toggle" title="وضع الظلام"></i>
             </div>
         </div>
@@ -346,7 +361,7 @@
                         addMessage("bot", response.bot_response);
                     },
                     error: function () {
-                        addMessage("bot", "عذرًا، حدث خطأ أثناء معالجة طلبك.");
+                        addMessage("bot", "عذرًا، حدث خطأ أثناء معالجة طلبك. ❌");
                     },
                     complete: function () {
                         // إخفاء مؤشر التحميل بعد انتهاء الطلب
@@ -369,6 +384,20 @@
             $("#clear-chat").click(function () {
                 const chatBox = document.getElementById("chat-box");
                 chatBox.innerHTML = ""; // مسح جميع الرسائل
+            });
+
+            // زر مسح السياق
+            $("#clear-context").click(function () {
+                $.ajax({
+                    url: "/clear_context",
+                    method: "POST",
+                    success: function (response) {
+                        alert(response.message); // عرض رسالة نجاح مسح السياق
+                    },
+                    error: function () {
+                        alert("حدث خطأ أثناء مسح السياق.");
+                    }
+                });
             });
 
             // زر التبديل بين الوضع العادي والوضع المظلم
